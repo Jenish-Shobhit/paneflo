@@ -146,10 +146,19 @@ struct FuzzLayoutTests {
                 #expect(recovered.width <= rect.width + 1e-9 && recovered.height <= rect.height + 1e-9, "seed \(seed): recover grew")
             }
             let zone = rng.pick(LayoutZone.allCases)
-            if let requested = LayoutEngine.plan(zone: zone, in: destination.visibleFrame, gap: 8, backingScale: destination.backingScale).rect {
+            // Even seeds tile flush (the default), odd ones with a margin so zones touch no screen edge.
+            let gap = seed.isMultiple(of: 2) ? LayoutEngine.defaultGap : 8
+            let v = destination.visibleFrame
+            if let requested = LayoutEngine.plan(zone: zone, in: v, gap: gap, backingScale: destination.backingScale).rect {
                 let accepted = WindowSize(width: requested.width * rng.double(0.3...1), height: requested.height * rng.double(0.3...1))
-                let settled = DisplayPlacement.settledFrame(requested: requested, accepted: accepted, within: destination.visibleFrame)
+                let settled = DisplayPlacement.settledFrame(requested: requested, accepted: accepted, within: v)
                 #expect(Self.inside(settled, requested), "seed \(seed): shrunken window left its zone")
+                // A shrunken window stays against every screen edge its zone touches.
+                let t = DisplayPlacement.edgeTolerance
+                if abs(requested.x - v.x) <= t { #expect(settled.x == requested.x, "seed \(seed): left edge") }
+                else if abs(requested.maxX - v.maxX) <= t { #expect(abs(settled.maxX - requested.maxX) < 1e-9, "seed \(seed): right edge") }
+                if abs(requested.y - v.y) <= t { #expect(settled.y == requested.y, "seed \(seed): top edge") }
+                else if abs(requested.maxY - v.maxY) <= t { #expect(abs(settled.maxY - requested.maxY) < 1e-9, "seed \(seed): bottom edge") }
             }
         }
     }

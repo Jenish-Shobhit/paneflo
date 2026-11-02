@@ -1387,7 +1387,8 @@ private final class WindowWorker: @unchecked Sendable {
             var note = "Layout applied. Undo is available."
             if let bounds, !Self.sameSize(actual, requested) {
                 // The application keeps its own size limits. Confirm once, then place the size it
-                // accepts at the requested origin, centered inside the zone when it is smaller.
+                // accepts: against the screen edges the zone touches when it is smaller (centered on an
+                // axis touching neither), at the requested origin kept on the display when it is larger.
                 Thread.sleep(forTimeInterval: 0.02)
                 if let again = Self.frame(target.element) { actual = again }
                 if !Self.sameSize(actual, requested) {

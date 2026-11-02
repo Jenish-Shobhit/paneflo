@@ -224,7 +224,61 @@ struct DisplayPlacementTests {
 
     // MARK: Apps that limit their own size
 
+    /// A terminal-like window that sizes itself to whole character cells: a little smaller than any zone.
+    private func settle(_ zone: LayoutZone, in v: WindowRect, shortBy cell: WindowSize = WindowSize(width: 12, height: 5)) throws
+        -> (zone: WindowRect, settled: WindowRect) {
+        let requested = try #require(LayoutEngine.plan(zone: zone, in: v, backingScale: 2).rect)
+        let accepted = WindowSize(width: requested.width - cell.width, height: requested.height - cell.height)
+        return (requested, DisplayPlacement.settledFrame(requested: requested, accepted: accepted, within: v))
+    }
+
+    @Test func fillWithAStepSizedWindowStaysTopLeftFlush() throws {
+        let v = rect(0, 37, 1512, 945)
+        let fill = try #require(LayoutEngine.plan(zone: .maximize, in: v, backingScale: 2).rect)
+        let settled = DisplayPlacement.settledFrame(requested: fill, accepted: WindowSize(width: 1500, height: 940), within: v)
+        #expect(settled == rect(0, 37, 1500, 940), "leftover goes to the right and bottom only")
+    }
+
+    @Test func stepSizedWindowsStayAgainstTheScreenEdgesTheirZoneTouches() throws {
+        let v = rect(0, 37, 1512, 945)
+        let right = try settle(.rightHalf, in: v).settled
+        #expect(right.maxX == v.maxX && right.y == v.y)
+        let left = try settle(.leftHalf, in: v).settled
+        #expect(left.x == v.x && left.y == v.y)
+        let top = try settle(.topHalf, in: v).settled
+        #expect(top.x == v.x && top.y == v.y)
+        let bottom = try settle(.bottomHalf, in: v).settled
+        #expect(bottom.x == v.x && bottom.maxY == v.maxY)
+        let topRight = try settle(.topRightQuarter, in: v).settled
+        #expect(topRight.maxX == v.maxX && topRight.y == v.y)
+        let bottomLeft = try settle(.bottomLeftQuarter, in: v).settled
+        #expect(bottomLeft.x == v.x && bottomLeft.maxY == v.maxY)
+        let bottomRight = try settle(.bottomRightQuarter, in: v).settled
+        #expect(bottomRight.maxX == v.maxX && bottomRight.maxY == v.maxY)
+        let first = try settle(.firstThird, in: v).settled
+        #expect(first.x == v.x && first.y == v.y)
+        let last = try settle(.lastThird, in: v).settled
+        #expect(last.maxX == v.maxX && last.y == v.y)
+        // The middle third touches neither side edge: centred across, top-flush down.
+        let middle = try settle(.middleThird, in: v)
+        #expect(middle.settled.x == middle.zone.x + 6 && middle.settled.y == v.y)
+        // Every settled window stays inside its zone.
+        for zone in LayoutZone.allCases where zone != .center {
+            let (requested, settled) = try settle(zone, in: v)
+            #expect(requested.contains(settled), "\(zone)")
+        }
+    }
+
+    @Test func centerStillCentresAStepSizedWindow() throws {
+        let v = rect(0, 37, 1512, 945)
+        let zone = try #require(LayoutEngine.plan(zone: .center, in: v, backingScale: 2,
+                                                  currentSize: WindowSize(width: 800, height: 600)).rect)
+        let settled = DisplayPlacement.settledFrame(requested: zone, accepted: WindowSize(width: 790, height: 590), within: v)
+        #expect(settled == rect(zone.x + 5, zone.y + 5, 790, 590))
+    }
+
     @Test func smallerThanRequestedIsCenteredInTheZone() {
+        // A zone that touches no edge of the visible frame.
         let zone = rect(100, 50, 800, 600)
         let bounds = rect(0, 0, 1600, 900)
         let settled = DisplayPlacement.settledFrame(requested: zone, accepted: WindowSize(width: 400, height: 300), within: bounds)

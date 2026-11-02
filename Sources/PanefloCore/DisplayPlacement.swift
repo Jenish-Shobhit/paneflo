@@ -109,13 +109,24 @@ public enum DisplayPlacement {
         return TilePlan(displayIndex: home, rect: rect, cycled: false)
     }
 
-    /// Final frame once the application has reported the size it accepted. An axis the app
-    /// shrank below the zone is centered in the zone; an axis it grew beyond the zone keeps the
+    /// How close (in points) a zone edge must be to an edge of `bounds` to count as touching it.
+    public static let edgeTolerance = 1.0
+
+    /// Final frame once the application has reported the size it accepted. `bounds` is the display's
+    /// visible frame. An axis the app shrank below the zone (a terminal sizing itself to whole
+    /// character cells) stays against the screen edge the zone touches: its leading edge when the
+    /// zone touches it (Fill, a left or top half), otherwise its trailing edge (a right or bottom
+    /// half), so the leftover goes to the inside; a zone touching neither edge on that axis (Center,
+    /// the middle third across) is centered. An axis the app grew beyond the zone keeps the
     /// requested origin, shifted only as far as needed to stay inside `bounds`.
     public static func settledFrame(requested: WindowRect, accepted: WindowSize, within bounds: WindowRect) -> WindowRect {
         guard accepted.width > 0, accepted.height > 0 else { return requested }
         func axis(origin: Double, length: Double, accepted: Double, boundsOrigin: Double, boundsLength: Double) -> Double {
-            if accepted <= length { return origin + (length - accepted) / 2 }
+            if accepted <= length {
+                if abs(origin - boundsOrigin) <= edgeTolerance { return origin }
+                if abs((origin + length) - (boundsOrigin + boundsLength)) <= edgeTolerance { return origin + length - accepted }
+                return origin + (length - accepted) / 2
+            }
             let overflow = origin + accepted - (boundsOrigin + boundsLength)
             let shifted = overflow > 0 ? origin - overflow : origin
             return max(boundsOrigin, shifted)

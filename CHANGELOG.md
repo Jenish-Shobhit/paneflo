@@ -7,6 +7,7 @@ All notable changes to Paneflo are listed here. Versions follow [Semantic Versio
 ### Fixes
 
 - Fill and the other tiling arrangements now reach the edges of the screen: a filled window covers everything below the menu bar and beside the Dock, and halves, thirds and quarters meet each other with no seam. Paneflo no longer leaves an 8 pt margin around tiled windows or between them, whether you use a shortcut, the menu bar or drag a window to a snap area. Windows tiled by earlier versions still count as pairs.
+- Terminal and other apps that resize in steps now stay against the screen edges when tiled: a filled terminal sits in the top-left corner, a right half against the right edge. Any leftover sliver goes to the inside edge instead of being split around the window. Windows tiled to the centre are still centred.
 
 ## 1.2.2 — 2026-10-19
 

@@ -75,6 +75,23 @@ struct TileGroupRegistryTests {
         #expect(outside.groups.isEmpty)
     }
 
+    @Test func stepSizedHalvesSettledAgainstTheScreenEdgesStillPair() {
+        // Two terminals, each up to almost one character cell (7 x 16 pt) short of its half, settled against the
+        // screen edges: the leftovers add up to a 13 pt seam and a 15 pt strip along the bottom, inside the tolerance.
+        let v = laptop.visibleFrame
+        func settled(_ zone: LayoutZone) -> WindowRect {
+            let requested = half(zone, on: laptop, gap: LayoutEngine.defaultGap)
+            let accepted = WindowSize(width: requested.width - 6.5, height: requested.height - 15)
+            return DisplayPlacement.settledFrame(requested: requested, accepted: accepted, within: v)
+        }
+        let left = settled(.leftHalf), right = settled(.rightHalf)
+        #expect(left.x == v.x && right.maxX == v.maxX && right.x - left.maxX == 13)
+        var registry = TileGroupRegistry()
+        registry.reconcile(records: [window(1, left), window(2, right)], displays: displays, now: 0)
+        #expect(registry.partner(of: windowID(1)) == windowID(2))
+        #expect(registry.group(containing: windowID(2))?.role(of: windowID(2)) == .right)
+    }
+
     @Test func halvesOnDifferentDisplaysDoNotPairEvenWithMixedScales() {
         var registry = TileGroupRegistry()
         registry.reconcile(records: [window(1, half(.leftHalf, on: laptop)), window(2, half(.rightHalf, on: external))],
