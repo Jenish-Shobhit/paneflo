@@ -95,8 +95,8 @@ public struct TileGroup: Equatable, Sendable {
 /// Pure value state: the caller supplies frames, displays and the time, and calls `reconcile` on every
 /// registry snapshot. Nothing here reads the window server or Accessibility.
 public struct TileGroupRegistry: Sendable {
-    /// Edge tolerance in points. Covers Paneflo's 8 pt gap, other tools' margins and apps that round their
-    /// size to a character grid, while a third or a quarter is far outside it.
+    /// Edge tolerance in points. Covers flush tiles, the 8 pt gap older Paneflo builds left, other tools' margins
+    /// and apps that round their size to a character grid, while a third or a quarter is far outside it.
     public static let defaultTolerance = 24.0
     /// How long a frame reported by a Paneflo placement is trusted over an older registry record.
     public static let placementGrace = 1.5

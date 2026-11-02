@@ -124,7 +124,7 @@ extension TileGroupRegistry {
     /// partner's move into the half `id` leaves, so both run at once instead of one after the other (no moment with
     /// an empty half). Nil when the request is not a swap (the window would land elsewhere, or has no pair).
     public func plannedSwap(for id: WindowIdentity, zone: LayoutZone, records: [WindowRecord], displays: [DisplayArea],
-                            explicitDisplay: Int? = nil, gap: Double = 8, now: Double) -> TileMove? {
+                            explicitDisplay: Int? = nil, gap: Double = LayoutEngine.defaultGap, now: Double) -> TileMove? {
         guard let group = group(containing: id), let role = TileGroupRole(zone: zone), let old = group.role(of: id),
               role == old.complement, let partner = group.partner(of: id),
               let pairDisplay = displays.firstIndex(where: { $0.frame.isClose(to: group.display, tolerance: 1) }) else { return nil }
@@ -147,7 +147,7 @@ extension TileGroupRegistry {
     @discardableResult
     public mutating func resolve(_ landing: TileLanding, records: [WindowRecord], displays: [DisplayArea], now: Double,
                                  busy: Set<WindowIdentity> = [], homes: TileHomeFrames = TileHomeFrames(),
-                                 preferredPartner: WindowIdentity? = nil, gap: Double = 8) -> TileResolution {
+                                 preferredPartner: WindowIdentity? = nil, gap: Double = LayoutEngine.defaultGap) -> TileResolution {
         let w = landing.window
         var result = TileResolution()
         notePlacement(w, frame: landing.frame, now: now)
@@ -272,7 +272,8 @@ extension TileGroupRegistry {
         return result
     }
 
-    /// The rest of the display beside `frame` (which holds `role`), keeping Paneflo's gap; nil below `minimumShare`.
+    /// The rest of the display beside `frame` (which holds `role`), keeping the tiling `gap` (none by default);
+    /// nil below `minimumShare`.
     static func remainder(beside frame: WindowRect, role: TileGroupRole, on display: DisplayArea, gap: Double) -> WindowRect? {
         guard let other = half(role.complement, on: display, gap: gap) else { return nil }
         let scale = max(1, display.backingScale)

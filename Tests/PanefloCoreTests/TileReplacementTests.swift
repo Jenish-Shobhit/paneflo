@@ -13,8 +13,11 @@ struct TileReplacementTests {
     private let floating = WindowRect(x: 200, y: 200, width: 640, height: 480)
     private let a = windowID(1), b = windowID(2), c = windowID(3), e = windowID(5)
 
+    private let gap = LayoutEngine.defaultGap
+
+    /// Planned the way the resolver plans by default (no explicit gap).
     private func half(_ zone: LayoutZone, on display: DisplayArea) -> WindowRect {
-        LayoutEngine.plan(zone: zone, in: display.visibleFrame, gap: 8, backingScale: display.backingScale).rect!
+        LayoutEngine.plan(zone: zone, in: display.visibleFrame, backingScale: display.backingScale).rect!
     }
 
     private func window(_ id: WindowIdentity, _ frame: WindowRect, minimized: Bool = false, app: String = "example.app") -> WindowRecord {
@@ -164,6 +167,24 @@ struct TileReplacementTests {
         let busy = busyRegistry.resolve(land(a, .rightHalf), records: records, displays: displays, now: 1, busy: [b])
         #expect(busy.moves.isEmpty && busy.kind == .left)
         records.removeAll()
+    }
+
+    @Test func replacementMovesByDefaultPlanFlushHalves() {
+        // A swap and a size-limited remainder, both on the default path: no margin at the edges or the seam.
+        let (registry, records) = start()
+        let v = laptop.visibleFrame
+        let swap = registry.plannedSwap(for: a, zone: .rightHalf, records: records, displays: displays, now: 1)
+        let swapped = try! #require(swap).frame
+        #expect(swapped.x == v.x && swapped.y == v.y && swapped.height == v.height && swapped.width == v.width / 2)
+        var (limited, limitedRecords) = start()
+        let left = half(.leftHalf, on: laptop)
+        #expect(left.x == v.x && left.maxX == half(.rightHalf, on: laptop).x)
+        let wide = WindowRect(x: v.x, y: v.y, width: 900, height: v.height)
+        let result = limited.resolve(TileLanding(window: c, zone: .leftHalf, display: 0, frame: wide, requested: left),
+                                     records: limitedRecords, displays: displays, now: 1)
+        let rest = try! #require(result.moves.first { $0.reason == .remainder }).frame
+        #expect(rest.x == wide.maxX && rest.maxX == v.maxX && rest.y == v.y && rest.height == v.height)
+        limitedRecords.removeAll()
     }
 
     @Test func noSwapIsPlannedWhenTheWindowWouldLandOnAnotherDisplay() {
@@ -348,7 +369,7 @@ struct TileReplacementTests {
                                       records: records, displays: displays, now: 1)
         #expect(result.kind == .replaced && result.group?.first == c && result.group?.second == b)
         let rest = try! #require(result.moves.first { $0.reason == .remainder })
-        #expect(rest.window == b && rest.frame.x == wide.maxX + 8 && rest.frame.maxX == half(.rightHalf, on: laptop).maxX)
+        #expect(rest.window == b && rest.frame.x == wide.maxX + gap && rest.frame.maxX == half(.rightHalf, on: laptop).maxX)
         // Validated by the seam rule on the next snapshot.
         records[0] = window(c, wide); records[2] = window(b, rest.frame)
         registry.reconcile(records: records, displays: displays, now: 3)
@@ -364,7 +385,7 @@ struct TileReplacementTests {
                                       records: records, displays: displays, now: 1)
         #expect(result.group?.first == c)
         #expect(result.moves.map(\.reason) == [.alignEdge, .remainder])
-        #expect(result.moves[0].frame.x == left.x && result.moves[1].frame.x == left.x + 500 + 8)
+        #expect(result.moves[0].frame.x == left.x && result.moves[1].frame.x == left.x + 500 + gap)
         records.removeAll()
     }
 

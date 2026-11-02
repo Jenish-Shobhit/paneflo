@@ -36,6 +36,20 @@ struct LayoutEngineTests {
     }
 
     @Test
+    func testDefaultGapFillsAndSplitsTheBoundsFlush() throws {
+        for (bounds, scale) in [(WindowRect(x: 0, y: 37, width: 1_512, height: 875), 2.0),
+                                (WindowRect(x: 0, y: 25, width: 1_511, height: 874), 2.0),
+                                (WindowRect(x: 1_512, y: -73, width: 1_919, height: 1_055), 1.0)] {
+            #expect(LayoutEngine.plan(zone: .maximize, in: bounds, backingScale: scale).rect == bounds)
+            let left = try #require(LayoutEngine.plan(zone: .leftHalf, in: bounds, backingScale: scale).rect)
+            let right = try #require(LayoutEngine.plan(zone: .rightHalf, in: bounds, backingScale: scale).rect)
+            #expect(left.x == bounds.x && left.maxX == right.x && right.maxX == bounds.maxX, "\(bounds) @\(scale)x")
+            #expect(left.width + right.width == bounds.width)
+            #expect(left.y == bounds.y && left.height == bounds.height && right.y == bounds.y && right.height == bounds.height)
+        }
+    }
+
+    @Test
     func testConstraintsAndInvalidNumbersAreExplicitlyRejected() {
         let bounds = WindowRect(x: 0, y: 0, width: 1_000, height: 800)
         #expect(LayoutEngine.plan(zone: .leftHalf, in: bounds, minimumSize: WindowSize(width: 600, height: 200)) == .rejected(.minimumSize))

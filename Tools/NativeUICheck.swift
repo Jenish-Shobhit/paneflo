@@ -1253,8 +1253,8 @@ struct NativeUICheck {
         print("START tile pairs")
         desktop.desktopEntry = nil
         guard let display = WindowService.displayAreas().first,
-              let left = LayoutEngine.plan(zone: .leftHalf, in: display.visibleFrame, gap: 8, backingScale: display.backingScale).rect,
-              let right = LayoutEngine.plan(zone: .rightHalf, in: display.visibleFrame, gap: 8, backingScale: display.backingScale).rect else {
+              let left = LayoutEngine.plan(zone: .leftHalf, in: display.visibleFrame, backingScale: display.backingScale).rect,
+              let right = LayoutEngine.plan(zone: .rightHalf, in: display.visibleFrame, backingScale: display.backingScale).rect else {
             throw Failure.check("No display for the tile-pair check")
         }
         var windows = records(6)

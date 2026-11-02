@@ -141,7 +141,7 @@ private func close(_ a: CGRect, _ b: CGRect, _ tolerance: CGFloat = 2) -> Bool {
 }
 
 /// Independent expectation for a half-screen tile of a window starting at `window`
-/// (Accessibility coordinates): the screen with the largest overlap, its visible frame, 8 pt gap.
+/// (Accessibility coordinates): the screen with the largest overlap, its visible frame, Paneflo's default gap.
 private func expectedRect(_ zone: LayoutZone, window: CGRect) -> CGRect? {
     let screens = NSScreen.screens
     guard let primary = screens.first else { return nil }
@@ -154,7 +154,7 @@ private func expectedRect(_ zone: LayoutZone, window: CGRect) -> CGRect? {
         max(0, min(r.maxX, win.maxX) - max(r.x, win.x)) * max(0, min(r.maxY, win.maxY) - max(r.y, win.y))
     }
     guard let screen = screens.max(by: { overlap(ax($0.frame)) < overlap(ax($1.frame)) }),
-          let rect = LayoutEngine.plan(zone: zone, in: ax(screen.visibleFrame), gap: 8, backingScale: screen.backingScaleFactor,
+          let rect = LayoutEngine.plan(zone: zone, in: ax(screen.visibleFrame), backingScale: screen.backingScaleFactor,
                                        currentSize: win.size).rect else { return nil }
     return CGRect(x: rect.x, y: rect.y, width: rect.width, height: rect.height)
 }
@@ -385,8 +385,8 @@ private final class PairBench {
         guard let (partnerApp, partnerWindow) = element(left, "One"), let (targetApp, targetWindow) = element(right, "Two"),
               let (_, coverWindow) = element(cover, ""),
               let display = WindowService.displayAreas().first,
-              let leftHalf = LayoutEngine.plan(zone: .leftHalf, in: display.visibleFrame, gap: 8, backingScale: display.backingScale).rect,
-              let rightHalf = LayoutEngine.plan(zone: .rightHalf, in: display.visibleFrame, gap: 8, backingScale: display.backingScale).rect else {
+              let leftHalf = LayoutEngine.plan(zone: .leftHalf, in: display.visibleFrame, backingScale: display.backingScale).rect,
+              let rightHalf = LayoutEngine.plan(zone: .rightHalf, in: display.visibleFrame, backingScale: display.backingScale).rect else {
             print("Fixture AX windows or display not found."); return 5
         }
         func cg(_ r: WindowRect) -> CGRect { CGRect(x: r.x, y: r.y, width: r.width, height: r.height) }
@@ -550,8 +550,8 @@ private final class ReplaceBench {
         guard let a = record(appA)?.id, let b = record(appB)?.id, let c = record(appC)?.id,
               let ea = element(appA), let eb = element(appB), let ec = element(appC),
               let display = WindowService.displayAreas().first,
-              let left = LayoutEngine.plan(zone: .leftHalf, in: display.visibleFrame, gap: 8, backingScale: display.backingScale).rect,
-              let right = LayoutEngine.plan(zone: .rightHalf, in: display.visibleFrame, gap: 8, backingScale: display.backingScale).rect else {
+              let left = LayoutEngine.plan(zone: .leftHalf, in: display.visibleFrame, backingScale: display.backingScale).rect,
+              let right = LayoutEngine.plan(zone: .rightHalf, in: display.visibleFrame, backingScale: display.backingScale).rect else {
             print("Fixture windows or display not found: records \(records.count) pids \(Set(records.map(\.id.process.pid)).count)"
                   + " elements \([appA, appB, appC].map { element($0) != nil })")
             return 5

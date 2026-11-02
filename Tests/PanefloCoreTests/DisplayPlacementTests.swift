@@ -57,6 +57,47 @@ struct DisplayPlacementTests {
         #expect(left.visibleFrame == rect(-1920, -48 + 24, 1920, 1056))
     }
 
+    // MARK: Default gap: flush to the visible frame
+
+    @Test func defaultTilingLeavesNoMarginAroundOrBetweenWindows() throws {
+        #expect(LayoutEngine.defaultGap == 0)
+        let window = rect(400, 300, 500, 400)
+        // Notch laptop at 2x, and odd-width displays (an odd point width, an odd pixel width) at 1x and 2x.
+        let areas = [
+            notchPrimary,
+            display(frame: rect(0, 0, 1511, 982), visible: rect(0, 70, 1511, 888), scale: 2, primaryHeight: 982),
+            display(frame: rect(0, 0, 1511.5, 982), visible: rect(0, 70, 1511.5, 888), scale: 2, primaryHeight: 982),
+            display(frame: rect(0, 0, 1365, 767), visible: rect(0, 0, 1365, 743), scale: 1, primaryHeight: 767),
+        ]
+        for area in areas {
+            let v = area.visibleFrame, label = "\(v) @\(area.backingScale)x"
+            func tile(_ zone: LayoutZone) throws -> WindowRect {
+                try #require(DisplayPlacement.planTile(zone: zone, window: window, displays: [area])).rect
+            }
+            #expect(try tile(.maximize) == v, "Fill is the visible frame exactly: \(label)")
+            let left = try tile(.leftHalf), right = try tile(.rightHalf)
+            #expect(left.x == v.x && right.maxX == v.maxX, "halves reach both side edges: \(label)")
+            #expect(left.maxX == right.x, "halves share one edge, no gap or overlap: \(label)")
+            #expect(left.y == v.y && left.height == v.height && right.y == v.y && right.height == v.height, "\(label)")
+            #expect(left.width + right.width == v.width, "\(label)")
+            let top = try tile(.topHalf), bottom = try tile(.bottomHalf)
+            #expect(top.y == v.y && top.maxY == bottom.y && bottom.maxY == v.maxY, "\(label)")
+            let thirds = try [LayoutZone.firstThird, .middleThird, .lastThird].map(tile)
+            #expect(thirds[0].x == v.x && thirds[0].maxX == thirds[1].x && thirds[1].maxX == thirds[2].x
+                    && thirds[2].maxX == v.maxX, "\(label)")
+            let tl = try tile(.topLeftQuarter), tr = try tile(.topRightQuarter)
+            let bl = try tile(.bottomLeftQuarter), br = try tile(.bottomRightQuarter)
+            #expect(tl.x == v.x && tl.y == v.y && br.maxX == v.maxX && br.maxY == v.maxY, "\(label)")
+            #expect(tl.maxX == tr.x && bl.maxX == br.x && tl.maxY == bl.y && tr.maxY == br.y, "\(label)")
+            for rect in [left, right, top, bottom, tl, tr, bl, br] + thirds {
+                let scale = area.backingScale
+                for edge in [rect.x, rect.y, rect.maxX, rect.maxY] {
+                    #expect(abs(edge * scale - (edge * scale).rounded()) < 1e-9, "pixel-aligned: \(label)")
+                }
+            }
+        }
+    }
+
     // MARK: Zones per display layout
 
     @Test func halvesFillTheVisibleFrameForEveryDockPosition() throws {

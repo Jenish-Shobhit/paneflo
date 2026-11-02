@@ -2,6 +2,12 @@
 
 All notable changes to Paneflo are listed here. Versions follow [Semantic Versioning](https://semver.org); releases before 1.0.0 are 0.x milestones.
 
+## 1.2.3 — 2026-11-02
+
+### Fixes
+
+- Fill and the other tiling arrangements now reach the edges of the screen: a filled window covers everything below the menu bar and beside the Dock, and halves, thirds and quarters meet each other with no seam. Paneflo no longer leaves an 8 pt margin around tiled windows or between them, whether you use a shortcut, the menu bar or drag a window to a snap area. Windows tiled by earlier versions still count as pairs.
+
 ## 1.2.2 — 2026-10-19
 
 ### Performance

@@ -102,7 +102,12 @@ public enum LayoutResult: Equatable, Sendable {
 }
 
 public enum LayoutEngine {
-    public static func plan(zone: LayoutZone, in bounds: WindowRect, gap: Double = 0,
+    /// Margin, in points, that every tiling path leaves around and between tiled windows. Zero: Fill matches the
+    /// display's visible frame exactly and adjacent tiles share an edge. Callers default to this; pass `gap` only to
+    /// plan an explicit margin.
+    public static let defaultGap = 0.0
+
+    public static func plan(zone: LayoutZone, in bounds: WindowRect, gap: Double = LayoutEngine.defaultGap,
                             backingScale: Double = 1, minimumSize: WindowSize = .zero,
                             currentSize: WindowSize? = nil) -> LayoutResult {
         guard bounds.isValid, gap.isFinite, gap >= 0, validScale(backingScale), minimumSize.isValid,

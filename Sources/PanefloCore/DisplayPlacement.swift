@@ -89,7 +89,7 @@ public enum DisplayPlacement {
     /// Chooses the display and rectangle for a tile request from the window's fresh frame.
     /// `explicitDisplay` (the Settings picker) overrides the window's own display and never cycles.
     public static func planTile(zone: LayoutZone, window: WindowRect, displays: [DisplayArea],
-                                explicitDisplay: Int? = nil, gap: Double = 8,
+                                explicitDisplay: Int? = nil, gap: Double = LayoutEngine.defaultGap,
                                 cycleDisplays: Bool = true) -> TilePlan? {
         guard !displays.isEmpty else { return nil }
         func plan(on index: Int) -> WindowRect? {

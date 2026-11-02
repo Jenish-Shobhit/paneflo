@@ -535,7 +535,7 @@ final class WindowService {
     /// frame read on the placement lane, never from the snapshot's record. Placement never blocks
     /// or is blocked by focus: both run on their own lanes with independent supersession.
     /// A hidden app is unhidden first and a minimized window is restored by the worker, so the tile is visible.
-    func tile(_ id: WindowIdentity? = nil, zone: LayoutZone, screenIndex: Int? = nil, gap: Double = 8, operation: UInt64? = nil,
+    func tile(_ id: WindowIdentity? = nil, zone: LayoutZone, screenIndex: Int? = nil, gap: Double = LayoutEngine.defaultGap, operation: UInt64? = nil,
               completion: (@MainActor @Sendable (TileOutcome?) -> Void)? = nil) {
         if id == nil, focusedID?.process.pid != NSWorkspace.shared.frontmostApplication?.processIdentifier {
             onStatus?("The frontmost window changed. Try again after its focus is confirmed.")
