@@ -2,6 +2,12 @@
 
 All notable changes to Paneflo are listed here. Versions follow [Semantic Versioning](https://semver.org); releases before 1.0.0 are 0.x milestones.
 
+## Unreleased
+
+### Fixes
+
+- Settings › Trackpad Gesture: the three-finger swipe recovers after the Mac sleeps. After a wake it could stay off with "Could not start the built-in trackpad (status 268435459)" until Paneflo was restarted, because the trackpad that stopped working was used again on every try. Paneflo now drops it and tries once more right away with a new one; if that also fails, it tries again on the next wake, when you return to Paneflo or when you turn the gesture back on. The message now shows the status in hex as well (0x10000003).
+
 ## 1.2.3 — 2026-11-02
 
 ### Fixes

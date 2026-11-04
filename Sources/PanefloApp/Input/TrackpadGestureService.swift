@@ -306,7 +306,8 @@ private final class TrackpadBackend: @unchecked Sendable {
     private var gestureHandler: (@Sendable (TrackpadGestureEvent) -> Void)?
     private var failureHandler: (@Sendable (TrackpadStartResult) -> Void)?
     private var lastTimestamp: Double?
-    // Queue-confined state. The resource is never released or dlclosed during the process.
+    // Queue-confined state. The resource is never released or dlclosed during the process; a lease that would not
+    // start is dropped (not released) so the next start creates a new device.
     private var symbols: Symbols?
     private var permanentFailure: String?
     private var resources: Resources?
@@ -344,44 +345,66 @@ private final class TrackpadBackend: @unchecked Sendable {
             guard !registered, !poisoned else {
                 completion(.failed("Trackpad shutdown has not completed safely. Restart Paneflo before trying again.", transient: false)); return
             }
-            guard let resource = prepare(manual: manual) else {
-                completion(.failed(failureReason ?? "The default built-in trackpad is unavailable.", transient: permanentFailure == nil)); return
-            }
-            lock.lock()
-            guard activationEpoch == requestEpoch else {
-                lock.unlock(); completion(.failed("Trackpad start was canceled.", transient: false)); return
-            }
-            diagnostics = .init(); recognizer = ThreeFingerSwipe(); freshContacts.reset(); lastTimestamp = nil
-            layoutCheck = TrackpadFrameSanity()
-            gestureHandler = onGesture; failureHandler = completion
-            observing = true
-            lock.unlock()
-            guard resource.register(resource.device, trackpadContactCallback) else {
-                cancel(); completion(.failed("macOS declined the trackpad contact callback.", transient: true)); return
-            }
-            registered = true
-            let result = resource.start(resource.device, 0)
-            guard result == 0 else {
-                cancel()
+            var attempt = 0
+            while true {
+                guard let resource = prepare(manual: manual) else {
+                    completion(.failed(failureReason ?? "The default built-in trackpad is unavailable.", transient: permanentFailure == nil)); return
+                }
+                lock.lock()
+                guard activationEpoch == requestEpoch else {
+                    lock.unlock(); completion(.failed("Trackpad start was canceled.", transient: false)); return
+                }
+                diagnostics = .init(); recognizer = ThreeFingerSwipe(); freshContacts.reset(); lastTimestamp = nil
+                layoutCheck = TrackpadFrameSanity()
+                gestureHandler = onGesture; failureHandler = completion
+                observing = true
+                lock.unlock()
+                guard resource.register(resource.device, trackpadContactCallback) else {
+                    cancel(); completion(.failed("macOS declined the trackpad contact callback.", transient: true)); return
+                }
+                registered = true
+                let result = resource.start(resource.device, 0)
+                let failure: String
+                if result != 0 {
+                    failure = "Could not start the built-in trackpad (status \(TrackpadStartRecovery.describe(status: result)))."
+                } else if !resource.running(resource.device) {
+                    failure = "The built-in trackpad did not begin observation."
+                } else {
+                    completion(.active); return
+                }
+                // Detach without moving the epoch, so a cancel from the service is still seen before a retry.
+                detach()
                 let stopped = stopPhysical()
-                completion(.failed(stopped.failure ?? "Could not start the built-in trackpad (status \(result)).",
-                                   transient: stopped.failure == nil))
-                return
-            }
-            guard resource.running(resource.device) else {
+                let decision = TrackpadStartRecovery.decide(stoppedCleanly: stopped.failure == nil, attempt: attempt)
+                // The old device is not released (its ownership is undocumented). At most two are dropped per start,
+                // and automatic starts are bounded by the service's retry gate.
+                if decision != .report { resources = nil }
+                if decision == .discardAndRetry {
+                    lock.lock(); let current = activationEpoch == requestEpoch; lock.unlock()
+                    if current {
+                        attempt += 1
+                        RuntimeDiagnostics.mark("gesture startRetry attempt=\(attempt)")
+                        continue
+                    }
+                }
                 cancel()
-                let stopped = stopPhysical()
-                completion(.failed(stopped.failure ?? "The built-in trackpad did not begin observation.", transient: stopped.failure == nil)); return
+                completion(.failed(stopped.failure ?? failure, transient: stopped.failure == nil)); return
             }
-            completion(.active)
         }
     }
 
     func cancel() {
         lock.lock()
         activationEpoch &+= 1
-        observing = false; recognizer.reset(); freshContacts.reset(); gestureHandler = nil; failureHandler = nil
+        detachLocked()
         lock.unlock()
+    }
+    /// Stops delivering frames without canceling a pending start.
+    private func detach() {
+        lock.lock(); detachLocked(); lock.unlock()
+    }
+    private func detachLocked() {
+        observing = false; recognizer.reset(); freshContacts.reset(); gestureHandler = nil; failureHandler = nil
     }
     func stop(completion: @escaping @Sendable (TrackpadStopResult) -> Void) {
         queue.async { [self] in completion(stopPhysical()) }
@@ -404,7 +427,8 @@ private final class TrackpadBackend: @unchecked Sendable {
     }
 
     /// Loads the framework and its functions once; a missing library or function is permanent. The default
-    /// built-in device is probed again on later starts if it was missing (no device at first enable, lid closed):
+    /// built-in device is probed again on later starts if it was missing (no device at first enable, lid closed) or
+    /// if `start` dropped a lease that would not start (see `TrackpadStartRecovery`):
     /// a manual start probes at once, automatic ones are spaced and bounded by `deviceProbes`. No polling or
     /// external-device enumeration. Any framework revision that exports the required functions is accepted here;
     /// `receive` then refuses contact data that fails the hard range checks or the runtime layout check.
