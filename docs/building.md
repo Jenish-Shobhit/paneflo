@@ -30,11 +30,7 @@ Runs the Swift Testing suites for `PanefloCore` (shortcut routing, sessions, lay
 
 ## Release
 
-1. Add a `## <version> — <date>` section to the top of `CHANGELOG.md` and add its link at the bottom.
-2. Commit it on a clean `main`.
-3. Run `scripts/release.sh <version>`. It needs the "Paneflo Dev" identity, the `gh` CLI signed in, and no other uncommitted changes. It bumps the bundle version, builds and zips the signed release app, commits, tags `v<version>`, pushes, and creates the GitHub release with the zip; the notes are every CHANGELOG section since the last tag.
-
-The download page at `docs/index.html` asks the GitHub API for the latest release, so it needs no edit per release.
+Releases are built and signed locally with the "Paneflo Dev" identity by `scripts/release.sh <version>`; `scripts/release.sh --check <version>` runs only its checks. The steps before and after, and how to recover a partial release, are in [releasing.md](releasing.md).
 
 ## Benchmarks
 

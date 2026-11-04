@@ -211,6 +211,7 @@ Without the "Paneflo Dev" certificate the app is signed ad hoc, and macOS asks f
 - [Architecture](docs/architecture.md): modules, threads and performance invariants.
 - [Building](docs/building.md): build, test, sign, release and benchmarks.
 - [Manual QA](docs/QA.md): the checks run before each release.
+- [Releasing](docs/releasing.md): the release checklist and recovering a partial release.
 - [Status](docs/status.md): verification record and known limits.
 - [Specifications](docs/specs/000-product.md): product and [engineering](docs/specs/001-engineering.md) specs.
 
