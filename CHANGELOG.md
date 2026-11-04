@@ -2,7 +2,7 @@
 
 All notable changes to Paneflo are listed here. Versions follow [Semantic Versioning](https://semver.org); releases before 1.0.0 are 0.x milestones.
 
-## Unreleased
+## 1.2.4 — 2026-11-05
 
 ### Fixes
 
