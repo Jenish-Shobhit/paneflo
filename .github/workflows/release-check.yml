@@ -1,0 +1,61 @@
+name: Release check
+
+# A release tag must get a published GitHub release with the zip: the website, docs/install.sh and the in-app
+# updater all read releases/latest. scripts/release.sh builds and publishes locally; this only checks the result,
+# so a tag that went out without a release fails here.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to check, such as v1.2.4
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Read the version from the tag
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::$TAG isn't a release tag like v1.2.3"; exit 1; }
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - name: Info.plist and CHANGELOG match the tag
+        run: |
+          plist=$(python3 -c 'import plistlib; print(plistlib.load(open("Resources/Info.plist", "rb"))["CFBundleShortVersionString"])')
+          [[ "$plist" == "$VERSION" ]] || { echo "::error::Resources/Info.plist at $TAG says $plist, not $VERSION"; exit 1; }
+          grep -q "^## ${VERSION//./\\.} " CHANGELOG.md || { echo "::error::CHANGELOG.md at $TAG has no '## $VERSION' section"; exit 1; }
+      - name: GitHub serves the release with the zip
+        run: |
+          zip="Paneflo-$VERSION.zip"
+          for attempt in $(seq 1 30); do
+            # Published releases only: a draft isn't served by tag.
+            state=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+              --jq "if .draft then \"draft\" else ([.assets[] | select(.name == \"$zip\") | .state][0] // \"missing\") end" 2>/dev/null) || state=none
+            latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null) || latest=""
+            # The latest release must be this tag, unless a newer version is already out.
+            newest=$(printf '%s\n%s\n' "${latest#v}" "$VERSION" | sort -V | tail -n 1)
+            if [[ "$state" == uploaded ]] && [[ "$latest" == "$TAG" || ( -n "$latest" && "$newest" != "$VERSION" ) ]]; then
+              echo "$TAG is published with $zip uploaded; latest is $latest"
+              exit 0
+            fi
+            echo "attempt $attempt: release $state, latest ${latest:-none}"
+            sleep 30
+          done
+          if [[ "$state" != uploaded ]]; then
+            echo "::error::$TAG has no published release with $zip uploaded (release: $state). Resume locally: scripts/release.sh $VERSION"
+          else
+            echo "::error::releases/latest is ${latest:-missing}, not $TAG. Mark it: gh release edit $TAG --latest"
+          fi
+          exit 1
